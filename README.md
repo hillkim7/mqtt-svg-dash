@@ -1,4 +1,4 @@
-This repository is revised version from Jan-Piet Men's [mqtt-svg-dash][1].
+This repository is revised version from Jan-Piet Men's [mqtt-svg-dash][1].  
 Original project uses three S/W components:
 MQTT broker + nodejs websocket + HTML5 code
 
@@ -36,5 +36,7 @@ Run mosquitto broker and start MQTT publishing.
 /usr/local/sbin/mosquitto -d -c mosquitto.conf
 python randpub.py
 ```
+
+Open corp.html file with web browser.
 
 [1]: https://github.com/jpmens/mqtt-svg-dash
