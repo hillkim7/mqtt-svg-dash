@@ -1,83 +1,145 @@
 <html>
   <script>
-	function svgMod(component, color, level, text) { 
+    function svgMod(component, color, level, text) { 
 
-	var svg = document.getElementById("svg_image_id")
-      		.getSVGDocument();
+    var svg = document.getElementById("svg_image_id")
+            .getSVGDocument();
 
-	// Put up the text of the message; this should probably be removed
+    // Put up the text of the message; this should probably be removed
 
-	var msg = svg.getElementById('msg');
-	msg.textContent = component + ': ' + text;
-	msg.style.setProperty("fill", color, "");
+    var msg = svg.getElementById('msg');
+    msg.textContent = component + ': ' + text;
+    msg.style.setProperty("fill", color, "");
 
-	try {
-		var shape = svg.getElementById(component);
-		shape.style.setProperty("fill", color, "");
+    try {
+        var shape = svg.getElementById(component);
+        shape.style.setProperty("fill", color, "");
 
-		var type = shape.getAttribute('type');
+        var type = shape.getAttribute('type');
 
-		if (type && type == 'num') {
-			// Print the numeric 'level'
-			shape.textContent = level;
-			shape.style.setProperty("fill", color, "");
-		}
+        if (type && type == 'num') {
+            // Print the numeric 'level'
+            shape.textContent = level;
+            shape.style.setProperty("fill", color, "");
+        }
 
-		if (type && type == 'slider') {
-			var width = level;
-			var maxw = shape.getAttribute('maxw');
+        if (type && type == 'slider') {
+            var width = level;
+            var maxw = shape.getAttribute('maxw');
 
-			if (maxw) {
-				width = level > maxw ? maxw : level;
-			}
-			shape.setAttribute("width", width);
-			shape.style.setProperty("fill", color, "");
-		}
+            if (maxw) {
+                width = level > maxw ? maxw : level;
+            }
+            shape.setAttribute("width", width);
+            shape.style.setProperty("fill", color, "");
+        }
 
-	} catch (err) {
-		console.log("component [" + component + "] not in SVG; skipping");
-	}
+    } catch (err) {
+        console.log("component [" + component + "] not in SVG; skipping");
+    }
 
-    } 
+  } 
   </script>
-<script type="text/javascript" src="lib/socket.io.min.js"></script>
+<script type="text/javascript" src="lib/mqttws31.js"></script>
 <script type="text/javascript" src="lib/jquery-1.4.2.js"></script>
 <script type="text/javascript">
-  var socket = io.connect('http://localhost:5000');
-    socket.on('connect', function () {
-      socket.on('mqtt', function (msg) {
+    var mqtt;
+    var reconnectTimeout = 2000;
+    var host = '192.168.11.203';
+    var port = 9001;
+    var topic = 'svgdash/#';;       // topic to subscribe to
+    var useTLS = false;
+    var username = null;
+    var password = null;
+    // username = "jjolie";
+    // password = "aa";
+    cleansession = true;
 
-	var arr = msg.topic.split('/');
-	var topic = arr[0];
-	var component = arr[1];
+    function MQTTconnect() {
+        mqtt = new Paho.MQTT.Client(
+                        host,
+                        port,
+                        "web_" + parseInt(Math.random() * 100,
+                        10));
+        var options = {
+            timeout: 3,
+            useSSL: useTLS,
+            cleanSession: cleansession,
+            onSuccess: onConnect,
+            onFailure: function (message) {
+                $('#status').val("Connection failed: " + message.errorMessage + "Retrying");
+                setTimeout(MQTTconnect, reconnectTimeout);
+            }
+        };
 
-        console.log(component + ',' + msg.topic+' '+msg.payload);
+        mqtt.onConnectionLost = onConnectionLost;
+        mqtt.onMessageArrived = onMessageArrived;
 
-	try {
-		var p = JSON.parse(msg.payload);
-		try {
-			if (p.hasOwnProperty('status')) {
-				var color = 'green';
+        if (username != null) {
+            options.userName = username;
+            options.password = password;
+        }
+        console.log("Host="+ host + ", port=" + port + " TLS = " + useTLS + " username=" + username + " password=" + password);
+        mqtt.connect(options);
+    }
 
-				switch (p.status) {
-					case 0: color = 'green'; break;
-					case 1: color = 'yellow'; break;
-					case 2: color = 'red'; break;
-					default: color = 'blue'; break;
-				}
+    function onConnect() {
+        $('#status').val('Connected to ' + host + ':' + port);
+        // Connection succeeded; subscribe to our topic
+        mqtt.subscribe(topic, {qos: 0});
+        $('#topic').val(topic);
+    }
 
-				svgMod(component, color, p.level, p.msg);
-			}
-		} catch (err) {};
-					
-	} catch (err) {
-	}
+    function onConnectionLost(response) {
+        setTimeout(MQTTconnect, reconnectTimeout);
+        $('#status').val("connection lost: " + responseObject.errorMessage + ". Reconnecting");
 
-     });
-     socket.emit('subscribe',{topic:'svgdash/#'});
+    };
+
+    function onMessageArrived(message) {
+
+        var msg_topic = message.destinationName;
+        var msg_payload = message.payloadString;
+
+        var arr = msg_topic.split('/');
+        var topic_prefix = arr[0];
+        var component = arr[1];
+    
+        console.log(component + ',' + msg_payload);
+    
+        try {
+            var p = JSON.parse(msg_payload);
+            try {
+                if (p.hasOwnProperty('status')) {
+                    var color = 'green';
+    
+                    switch (p.status) {
+                        case 0: color = 'green'; break;
+                        case 1: color = 'yellow'; break;
+                        case 2: color = 'red'; break;
+                        default: color = 'blue'; break;
+                    }
+    
+                    svgMod(component, color, p.level, p.msg);
+                }
+            } catch (err) {};
+                        
+        } catch (err) {
+        }
+    };
+
+    $(document).ready(function() {
+        MQTTconnect();
     });
+
 </script>
 <body>
-	<embed src="corp.svg" type="image/svg+xml" id="svg_image_id" />
+    <embed src="corp.svg" type="image/svg+xml" id="svg_image_id" />
+    <div>
+        <div>Subscribed to <input type='text' id='topic' disabled />
+        Status: <input type='text' id='status' size="80" disabled /></div>
+
+        <ul id='ws' style="font-family: 'Courier New', Courier, monospace;"></ul>
+    </div>
 </body>
 </html>

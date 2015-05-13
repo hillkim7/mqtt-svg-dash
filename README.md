@@ -1,27 +1,40 @@
-# mqtt-svg-dash
+This repository is revised version from Jan-Piet Men's [mqtt-svg-dash][1].
+Original project uses three S/W components:
+MQTT broker + nodejs websocket + HTML5 code
 
-Subscribe to MQTT, extract JSON from a message and make lights blink on an SVG page.
+Up-to-date version of mosquitto MQTT broker supports websockets natively.
+The nodejs websocket is no longer needed for the demo.
+Here it uses native websockets to connect to MQTT broker using a Paho.MQTT client JavaScript library.
 
-![](jmbp-561.jpg)
-
-## Pre-requisites
-
+First to use the mosquitto with websockets support I need to have recent mosquitto program,
+So I deleted old mosquitto package from my Ubuntu 14.04.1 LTS server.
 ```
-npm install socket.io
+sudo apt-get remove mosquitto
+sudo apt-get remove libmosquitto1
 ```
 
-## Running
+Second, download the newest mosquitto source code and compile it with "WITH_WEBSOCKETS:=yes".
+```
+wget http://mosquitto.org/files/source/mosquitto-1.4.2.tar.gz
+sudo apt-get install uuid-dev libwebsockets-dev	# install mosquitto required packages
+cd mosquitto-1.4.2
+make WITH_WEBSOCKETS:=yes
+sudo make install
+```
 
-1. Make sure your MQTT server is running and listening on _localhost_.
-2. Launch `./run.sh` which starts the Node socket server
-3. Point your Web browser at your Web server, to `.../corp.html`. You should see the
-   connection in the terminal window running _node_.
-4. Start publishing something on MQTT, as per the example in `randpub.py`
+Setting websocket bind address and port number through configuration file.
+```
+ # mosquitto conf 
+listener 9001 0.0.0.0
+protocol websockets
+bind_address 0.0.0.0
+port 1883
+```
 
-## Credits
+Run mosquitto broker and start MQTT publishing.
+```
+/usr/local/sbin/mosquitto -d -c mosquitto.conf
+python randpub.py
+```
 
-* The `socket.io` example for Node (`pusher.js`) and some bits of `corp.html` are by [Robert Hekkers][1] 
-
-
-  [1]: http://blog.hekkers.net/2012/10/13/realtime-data-with-mqtt-node-js-mqtt-js-and-socket-io/
-
+[1]: https://github.com/jpmens/mqtt-svg-dash
